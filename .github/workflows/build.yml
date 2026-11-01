@@ -1,0 +1,47 @@
+name: Build MasterForge
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -B build -A x64 -DVF_COPY_PLUGIN=OFF
+      - name: Build
+        run: cmake --build build --config Release --target MasterForge_VST3 MasterForge_Standalone --parallel
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item -Recurse build/MasterForge_artefacts/Release/VST3/MasterForge.vst3 out/
+          Copy-Item build/MasterForge_artefacts/Release/Standalone/MasterForge.exe out/
+          Copy-Item README.md out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MasterForge-Windows
+          path: out
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -B build -G Xcode -DVF_COPY_PLUGIN=OFF -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+      - name: Build
+        run: cmake --build build --config Release --target MasterForge_VST3 MasterForge_AU MasterForge_Standalone -- -quiet
+      - name: Package
+        run: |
+          mkdir -p out
+          cp -R build/MasterForge_artefacts/Release/VST3/MasterForge.vst3 out/
+          cp -R build/MasterForge_artefacts/Release/AU/MasterForge.component out/
+          cp -R build/MasterForge_artefacts/Release/Standalone/MasterForge.app out/
+          cp README.md out/
+          cd out && zip -qry ../MasterForge-macOS.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MasterForge-macOS
+          path: MasterForge-macOS.zip
